@@ -6,8 +6,8 @@ import { User, AuthToken } from '../types';
 
 export class AuthService {
   private static readonly SALT_ROUNDS = 12;
-  private static readonly JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
-  private static readonly JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+  private static readonly JWT_SECRET: string = process.env.JWT_SECRET || 'fallback-secret';
+  private static readonly JWT_EXPIRES_IN: string = process.env.JWT_EXPIRES_IN || '24h';
 
   static async hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, this.SALT_ROUNDS);
@@ -18,14 +18,15 @@ export class AuthService {
   }
 
   static generateToken(user: User): string {
-    const payload: AuthToken = {
+    const payload = {
       userId: user.id,
       email: user.email,
-      role: user.role,
-      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
+      role: user.role
     };
 
-    return jwt.sign(payload, this.JWT_SECRET, { expiresIn: this.JWT_EXPIRES_IN });
+    return jwt.sign(payload, this.JWT_SECRET, {
+      expiresIn: this.JWT_EXPIRES_IN as any
+    });
   }
 
   static verifyToken(token: string): AuthToken | null {

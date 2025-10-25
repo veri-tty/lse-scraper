@@ -23,17 +23,19 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Authentication middleware
-const authenticateToken = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+const authenticateToken = async (req: express.Request, res: express.Response, next: express.NextFunction): Promise<void> => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
+    res.status(401).json({ error: 'Access token required' });
+    return;
   }
 
   const decoded = AuthService.verifyToken(token);
   if (!decoded) {
-    return res.status(403).json({ error: 'Invalid or expired token' });
+    res.status(403).json({ error: 'Invalid or expired token' });
+    return;
   }
 
   (req as any).user = decoded;
@@ -308,10 +310,11 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
 });
 
 // Admin endpoints (role-based access)
-const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
   const user = (req as any).user;
   if (user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
+    res.status(403).json({ error: 'Admin access required' });
+    return;
   }
   next();
 };
@@ -434,7 +437,7 @@ app.delete('/api/admin/scheduler/:name', authenticateToken, requireAdmin, async 
 });
 
 // Error handling middleware
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });

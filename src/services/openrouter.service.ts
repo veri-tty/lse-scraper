@@ -2,12 +2,10 @@ import axios, { AxiosResponse } from 'axios';
 import crypto from 'crypto';
 import { pool } from '../config/database';
 import { logger } from '../config/logger';
-import { 
-  AnalysisRequest, 
-  AnalysisResult, 
-  KeywordMatch, 
-  OpenRouterResponse,
-  AIAnalysisConfig 
+import {
+  AnalysisResult,
+  KeywordMatch,
+  OpenRouterResponse
 } from '../types';
 
 export class OpenRouterService {
@@ -343,27 +341,40 @@ Rules:
   async encryptApiKey(apiKey: string): Promise<string> {
     const algorithm = 'aes-256-gcm';
     const secretKey = process.env.ENCRYPTION_KEY || 'fallback-key-32-characters-long!';
+
+    // Ensure key is exactly 32 bytes for AES-256
+    const key = crypto.createHash('sha256').update(secretKey).digest();
     const iv = crypto.randomBytes(16);
-    
-    const cipher = crypto.createCipher(algorithm, secretKey);
+
+    const cipher = crypto.createCipheriv(algorithm, key, iv);
     let encrypted = cipher.update(apiKey, 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    
-    return `${iv.toString('hex')}:${encrypted}`;
+
+    // Get auth tag for GCM mode
+    const authTag = cipher.getAuthTag();
+
+    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
   }
 
   async decryptApiKey(encryptedKey: string): Promise<string> {
     try {
       const algorithm = 'aes-256-gcm';
       const secretKey = process.env.ENCRYPTION_KEY || 'fallback-key-32-characters-long!';
-      
-      const [ivHex, encrypted] = encryptedKey.split(':');
-      const iv = Buffer.from(ivHex, 'hex');
-      
-      const decipher = crypto.createDecipher(algorithm, secretKey);
+
+      // Ensure key is exactly 32 bytes for AES-256
+      const key = crypto.createHash('sha256').update(secretKey).digest();
+
+      const parts = encryptedKey.split(':');
+      const iv = Buffer.from(parts[0], 'hex');
+      const authTag = Buffer.from(parts[1], 'hex');
+      const encrypted = parts[2];
+
+      const decipher = crypto.createDecipheriv(algorithm, key, iv);
+      decipher.setAuthTag(authTag);
+
       let decrypted = decipher.update(encrypted, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
-      
+
       return decrypted;
     } catch (error) {
       logger.error('Failed to decrypt API key:', error);

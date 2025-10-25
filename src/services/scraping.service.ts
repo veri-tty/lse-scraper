@@ -1,7 +1,4 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
-import * as cheerio from 'cheerio';
-import axios from 'axios';
-import fs from 'fs/promises';
 import path from 'path';
 import { pool } from '../config/database';
 import { logger } from '../config/logger';
@@ -148,7 +145,8 @@ export class LSEScrapingService {
 
     } catch (error) {
       logger.error('Scraping failed:', error);
-      await this.updateScrapingJobStatus(currentJobId, 'failed', 0, error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      await this.updateScrapingJobStatus(currentJobId, 'failed', 0, errorMessage);
       throw error;
     } finally {
       await this.closeBrowser();
